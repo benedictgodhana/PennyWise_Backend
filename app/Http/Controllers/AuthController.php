@@ -11,38 +11,36 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        // Validate the request
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+        // Validate the incoming request data
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
         ]);
 
-        // Attempt to log the user in
-        $user = User::where('email', $request->email)->first();
+        // Attempt to authenticate the user
+        if (Auth::attempt($credentials)) {
+            // Authentication was successful
+            $user = Auth::user();
+            $token = $user->createToken('authToken')->plainTextToken;
+            $role = $user->roles->first()->name;
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
-                'message' => 'Invalid login details'
-            ], 401);
+                'user' => $user,
+                'token' => $token,
+                'role' => $role,
+            ], 200);
+        } else {
+            // Authentication failed
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
-
-        // Create a token for the user
-        $token = $user->createToken('authToken')->plainTextToken;
-
-        // Return user details and token
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ], 200);
     }
+
 
     public function logout(Request $request)
     {
-        // Revoke the token that was used to authenticate the current request
+        // Revoke the token used for authentication
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Successfully logged out'
-        ]);
+        return response()->json(['message' => 'Successfully logged out']);
     }
 }
